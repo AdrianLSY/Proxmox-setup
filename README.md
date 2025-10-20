@@ -24,9 +24,8 @@ A repo for my Proxmox setup
 3. Update vfio-pci
 
    ```bash
-   echo 8086 125c > /sys/bus/pci/drivers/vfio-pci/new_id
-   echo -n 0000:01:00.0 > /sys/bus/pci/drivers/igc/unbind 2>/dev/null || true
-   echo -n 0000:01:00.0 > /sys/bus/pci/drivers/vfio-pci/bind
+   echo '8086 125c' > /sys/bus/pci/drivers/vfio-pci/new_id
+   echo -n '0000:01:00.0' > /sys/bus/pci/drivers/vfio-pci/bind
    ```
 
 4. Apply changes:
@@ -36,6 +35,7 @@ A repo for my Proxmox setup
    systemctl daemon-reload
    systemctl enable --now vfio-bind@01:00.0.service
    proxmox-boot-tool refresh
+   printf '%s\n' vfio vfio_iommu_type1 vfio_pci vfio_virqfd >> /etc/initramfs-tools/modules
    update-initramfs -u -k all
    ```
 
