@@ -1,5 +1,6 @@
 #!/bin/sh
 # Bind 0000:01:00.0 to vfio-pci reliably at early boot.
+
 DEV="0000:01:00.0"
 VENDOR="8086"
 DEVICE="125c"

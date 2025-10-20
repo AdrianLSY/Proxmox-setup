@@ -1,0 +1,6 @@
+root@proxmox:~# cat /etc/initramfs-tools/modules
+vfio
+vfio_iommu_type1
+vfio_pci
+vfio_virqfd
+root@proxmox:~#
