@@ -1,4 +1,4 @@
-# Proxmox Setup (Ext4 RAID1 + IOMMU + VFIO)
+# Proxmox Setup (BTRFS RAID1 + IOMMU + VFIO)
 
 A repo for my Proxmox setup
 
@@ -6,34 +6,47 @@ A repo for my Proxmox setup
 
 ## Steps
 
-1. Replace these files with the versions from this repo:
-
-   * `/etc/kernel/cmdline`
-   * `/etc/modules-load.d/vfio.conf`
-   * `/etc/network/interfaces`
-
-2. Apply changes:
+1. Update kernel
 
    ```bash
+   apt update && apt upgrade -y
+   ```
+
+2. Replace / Create these files with the versions from this repo:
+
+   * `/etc/kernel/cmdline`
+   * `/etc/network/interfaces`
+   * `/etc/modules-load.d/vfio.conf`
+   * `/etc/modprobe.d/vfio.conf`
+   * `/etc/systemd/system/vfio-bind-01:00:0.service`
+   * `/usr/local/bin/vfio-bind-01:00:0.sh`
+
+3. Update vfio-pci
+
+   ```bash
+   echo 8086 125c > /sys/bus/pci/drivers/vfio-pci/new_id
+   echo -n 0000:01:00.0 > /sys/bus/pci/drivers/igc/unbind
+   echo -n 0000:01:00.0 > /sys/bus/pci/drivers/igc/unbind 2>&1 | sed -n '1,5p'
+   echo -n 0000:01:00.0 > /sys/bus/pci/drivers/vfio-pci/bind
+   ```
+
+4. Apply changes:
+
+   ```bash
+   chmod +x /usr/local/bin/vfio-bind-01:00.0.sh
+   systemctl daemon-reload
+   systemctl enable --now vfio-bind@01:00.0.service
    proxmox-boot-tool refresh
    update-initramfs -u -k all
    ```
 
-3. Reboot:
+5. Reboot:
 
    ```bash
    reboot
    ```
 
-4. Verify configuration:
-
-   ```bash
-   lspci -nnk | grep -A3 I226       # should show vfio-pci
-   dmesg | grep -e DMAR -e IOMMU    # should show IOMMU enabled
-   ip a                             # ensure vmbr0 is up
-   ```
-
-5. Install ISOs (example: OPNsense):
+6. Install ISOs (example: OPNsense):
 
    ```bash
    wget -O /var/lib/vz/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2 \
@@ -41,7 +54,7 @@ A repo for my Proxmox setup
      bunzip2 /var/lib/vz/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2
    ```
 
-6. Install VMs (example: OPNsense):
+7. Install VMs (example: OPNsense):
 
    ```bash
    qm create 100 --name opnsense --memory 16384 --cores 4 --sockets 1 --cpu host --machine q35

@@ -1,0 +1,13 @@
+[Unit]
+Description=Bind %i to vfio-pci early
+DefaultDependencies=no
+Before=network-pre.target
+After=local-fs.target sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/vfio-bind-%i.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target
