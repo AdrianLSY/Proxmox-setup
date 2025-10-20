@@ -45,7 +45,7 @@ A repo for my Proxmox setup
    reboot
    ```
 
-6. Install ISOs (example: OPNsense):
+6. Install ISOs:
 
    ```bash
    wget -O /var/lib/vz/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2 \
@@ -53,7 +53,7 @@ A repo for my Proxmox setup
      bunzip2 /var/lib/vz/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2
    ```
 
-7. Install VMs (example: OPNsense):
+7. Install VMs:
 
    ```bash
    qm create 100 --name opnsense --memory 16384 --cores 4 --sockets 1 --cpu host --machine q35
