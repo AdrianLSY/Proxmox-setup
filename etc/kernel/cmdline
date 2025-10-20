@@ -1,0 +1,1 @@
+root=/dev/mapper/pve-root ro quiet intel_iommu=on iommu=pt isolcpus=2-7 nohz_full=2-7 rcu_nocbs=2-7
