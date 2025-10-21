@@ -1,6 +1,16 @@
 # Proxmox Setup (BTRFS RAID1 + IOMMU + VFIO)
 
-Configuration repository for Proxmox VE with PCI passthrough, CPU pinning, and NUMA optimization.
+A Configuration repository for Proxmox VE with PCI passthrough, CPU pinning, and NUMA optimization.
+A reference by me for future me
+
+Or YOU if you so happen to have this specific machine with the Intel Core 3-N355.
+[Topton 6 LAN 2.5G i226-V - AliExpress](https://www.aliexpress.com/item/1005005942080539.html?spm=a2g0o.order_list.order_list_main.5.18ed1802mnKkhV)
+
+BTRFS seems to fit my needs for a modern filesystem and integrated raid support on install. I did not want to manually configure ext4 with raid support.
+
+I've had issues setting this up with ZFS and some time googgling and asking chatgpt. The issue points to extremely poor VM disk performance due to ZFS’s heavy sync and copy-on-write behavior. Even non-ZFS guests like UFS suffer because each guest write forces ZFS to flush its own transaction groups.
+
+In short, ZFS adds too much overhead for VM workloads with frequent small writes, making installs and updates painfully slow. I dont have the patience to sit and wait for installs and updates to complete and have to benchmark opnsense performance under this constraint.
 
 ---
 
@@ -226,7 +236,7 @@ After the VM reboots into OPNsense, configure the network interfaces:
    - Enter new LAN IPv4 address: `192.168.0.1`
    - Enter new LAN IPv4 subnet bit count: `24`
    - For a WAN, enter upstream gateway (press Enter for none): Press Enter
-   
+
 4. **IPv6 Configuration:**
    - Configure IPv6 address interface via WAN tracking? `no`
    - Configure IPv6 address LAN interface via DHCP6? `no`
