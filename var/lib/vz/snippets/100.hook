@@ -18,7 +18,13 @@ log() {
 
 case "$PHASE" in
   post-start)
-    log "INFO" "VM started, applying CPU pinning"
+    log "INFO" "VM started, waiting for threads to spawn"
+
+    # Wait for VM to fully initialize and spawn all threads
+    # QEMU creates vCPU and vhost threads after the main process starts
+    sleep 15
+
+    log "INFO" "Applying CPU pinning"
 
     # Trigger the vm-pin service
     if systemctl start "vm-pin@${VMID}-2-5.service"; then

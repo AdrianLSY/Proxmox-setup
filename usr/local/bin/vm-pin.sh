@@ -91,15 +91,74 @@ fi
 
 log "INFO" "found QEMU process: pid=$pid comm=$proc_name"
 
-# Apply CPU affinity
+# Wait for VM threads to spawn (vCPU threads may not exist immediately)
+log "INFO" "waiting for VM threads to spawn..."
+sleep 15
+
+# Pin main process first
 if ! taskset -pc "$cpulist" "$pid" >/dev/null 2>&1; then
-  log "ERROR" "failed to set CPU affinity for pid $pid to cpulist $cpulist"
+  log "ERROR" "failed to set CPU affinity for main pid $pid to cpulist $cpulist"
   log "ERROR" "check if cpulist is valid for your system: lscpu"
   exit 1
 fi
 
-# Verify affinity was set correctly
+log "INFO" "pinned main process $pid to CPUs $cpulist"
+
+# Pin all threads individually (including vCPU, vhost, and other threads)
+thread_count=0
+failed_count=0
+
+if [ -d "/proc/$pid/task" ]; then
+  for tid in /proc/$pid/task/*; do
+    tid=$(basename "$tid")
+
+    # Skip if thread no longer exists
+    if ! [ -d "/proc/$pid/task/$tid" ]; then
+      continue
+    fi
+
+    # Apply pinning to this thread
+    if taskset -pc "$cpulist" "$tid" >/dev/null 2>&1; then
+      thread_count=$((thread_count + 1))
+    else
+      failed_count=$((failed_count + 1))
+      log "WARN" "failed to pin thread $tid"
+    fi
+  done
+fi
+
+log "INFO" "successfully pinned $thread_count threads to CPUs $cpulist"
+
+if [ $failed_count -gt 0 ]; then
+  log "WARN" "failed to pin $failed_count threads"
+fi
+
+# Verify affinity was set correctly for main process
 actual_affinity=$(taskset -pc "$pid" 2>/dev/null | awk '{print $NF}')
-log "INFO" "successfully pinned VM $vmid (pid $pid) to CPUs: $actual_affinity"
+log "INFO" "VM $vmid (pid $pid) affinity: $actual_affinity"
+
+# Final verification - check a few threads to ensure pinning stuck
+sleep 1
+sample_threads=$(ls /proc/$pid/task/ 2>/dev/null | head -3)
+verify_ok=0
+verify_total=0
+
+for tid in $sample_threads; do
+  if [ -d "/proc/$pid/task/$tid" ]; then
+    verify_total=$((verify_total + 1))
+    thread_affinity=$(taskset -pc "$tid" 2>/dev/null | awk '{print $NF}' || echo "error")
+    if [ "$thread_affinity" = "$cpulist" ]; then
+      verify_ok=$((verify_ok + 1))
+    else
+      log "WARN" "thread $tid has affinity $thread_affinity (expected $cpulist)"
+    fi
+  fi
+done
+
+if [ $verify_total -gt 0 ] && [ $verify_ok -eq $verify_total ]; then
+  log "INFO" "verification passed: all sampled threads correctly pinned"
+elif [ $verify_total -gt 0 ]; then
+  log "WARN" "verification: only $verify_ok/$verify_total sampled threads correctly pinned"
+fi
 
 exit 0
