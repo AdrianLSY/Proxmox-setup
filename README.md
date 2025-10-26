@@ -21,27 +21,35 @@ This repository mirrors the Proxmox filesystem structure. Files are organized by
 ```
 .
 ├── etc
-│   ├── initramfs-tools
-│   │   └── modules
-│   ├── kernel
-│   │   └── cmdline
-│   ├── modprobe.d
-│   │   └── vfio.conf
-│   ├── modules-load.d
-│   │   └── vfio.conf
-│   ├── network
-│   │   └── interfaces
-│   └── systemd
-│       └── system
-│           ├── vfio-bind@.service
-│           └── vm-pin@.service
+│   ├── initramfs-tools
+│   │   └── modules
+│   ├── kernel
+│   │   └── cmdline
+│   ├── modprobe.d
+│   │   ├── blacklist-i915.conf
+│   │   └── vfio.conf
+│   ├── modules-load.d
+│   │   └── vfio.conf
+│   ├── network
+│   │   └── interfaces
+│   └── systemd
+│       └── system
+│           ├── vfio-bind@.service
+│           └── vm-pin@.service
 ├── modprobe.d
 ├── README.md
-└── usr
-    └── local
-        └── bin
-            ├── vfio-bind-01:00.0.sh
-            └── vm-pin.sh
+├── usr
+│   └── local
+│       └── bin
+│           ├── vfio-bind-00:02.0.sh
+│           ├── vfio-bind-01:00.0.sh
+│           └── vm-pin.sh
+└── var
+    └── lib
+        └── vz
+            └── snippets
+                ├── 100.hook
+                └── 101.hook
 ```
 
 To deploy, copy files from their repository path to the corresponding system path (e.g., `etc/kernel/cmdline` → `/etc/kernel/cmdline`).
@@ -70,25 +78,30 @@ Copy files from this repository to their corresponding system locations:
 * `etc/network/interfaces` → `/etc/network/interfaces`
 * `etc/modules-load.d/vfio.conf` → `/etc/modules-load.d/vfio.conf`
 * `etc/modprobe.d/vfio.conf` → `/etc/modprobe.d/vfio.conf`
+* `etc/modprobe.d/blacklist-i915.conf` → `/etc/modprobe.d/blacklist-i915.conf`
 * `etc/initramfs-tools/modules` → `/etc/initramfs-tools/modules`
 * `etc/systemd/system/vfio-bind@.service` → `/etc/systemd/system/vfio-bind@.service`
 * `etc/systemd/system/vm-pin@.service` → `/etc/systemd/system/vm-pin@.service`
 * `usr/local/bin/vfio-bind-01:00.0.sh` → `/usr/local/bin/vfio-bind-01:00.0.sh`
+* `usr/local/bin/vfio-bind-00:02.0.sh` → `/usr/local/bin/vfio-bind-00:02.0.sh`
 * `usr/local/bin/vm-pin.sh` → `/usr/local/bin/vm-pin.sh`
 * `var/lib/vz/snippets/100.hook` → `/var/lib/vz/snippets/100.hook`
+* `var/lib/vz/snippets/101.hook` → `/var/lib/vz/snippets/101.hook`
 
 ### 3. Apply Changes
 
 ```bash
 # Set execute permissions
 chmod +x /usr/local/bin/vfio-bind-01:00.0.sh
+chmod +x /usr/local/bin/vfio-bind-00:02.0.sh
 chmod +x /usr/local/bin/vm-pin.sh
 chmod +x /var/lib/vz/snippets/100.hook
+chmod +x /var/lib/vz/snippets/101.hook
 
 # Reload systemd and enable services
 systemctl daemon-reload
 systemctl enable --now vfio-bind@01:00.0.service
-systemctl enable --now vm-pin@100-2-3.service
+systemctl enable --now vfio-bind@00:02.0.service
 
 # Update boot configuration and initramfs
 proxmox-boot-tool refresh
@@ -124,6 +137,9 @@ wget -O /var/lib/pve/local-btrfs/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2 \
   https://pkg.opnsense.org/releases/25.7/OPNsense-25.7-dvd-amd64.iso.bz2
 
 bunzip2 /var/lib/pve/local-btrfs/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2
+
+wget -O /var/lib/pve/local-btrfs/template/iso/ubuntu-24.04.3-live-server-amd64.iso \
+  https://releases.ubuntu.com/24.04.3/ubuntu-24.04.3-live-server-amd64.iso
 ```
 
 ### 7. Create VMs
@@ -175,7 +191,7 @@ The hook script will automatically apply CPU pinning when the VM starts.
 qm start 100
 
 # Wait a moment for the hook to execute, then verify
-sleep 2
+sleep 15
 
 # Check hook execution in system logs
 journalctl -t "vm-hook[100]" --since "1 minute ago"
@@ -252,3 +268,117 @@ After the VM reboots into OPNsense, configure the network interfaces:
    - Restore web GUI access defaults? `yes`
 
 After configuration completes, access the OPNsense web interface at `https://192.168.0.1` from a device on the LAN network (vmbr0). Default credentials are `root` / `opnsense`.
+
+---
+
+#### Ubuntu Server VM with GPU Passthrough (ID: 101)
+
+```bash
+qm create 101 \
+  --name ubuntu \
+  --memory 16384 \
+  --cores 4 \
+  --sockets 1 \
+  --cpu host \
+  --machine q35
+
+qm set 101 \
+  --numa 1 \
+  --numa0 cpus=0-3,hostnodes=0,memory=16384,policy=bind
+
+qm set 101 \
+  --scsihw virtio-scsi-pci \
+  --scsi0 local-btrfs:256,cache=none,discard=on,aio=native
+
+qm set 101 \
+  --ide2 local-btrfs:iso/ubuntu-24.04.3-live-server-amd64.iso,media=cdrom
+
+qm set 101 \
+  --net0 virtio,bridge=vmbr0
+
+qm set 101 \
+  --boot "order=ide2;scsi0" \
+  --vga std \
+  --serial0 socket \
+  --balloon 0 \
+  --onboot 0
+
+# Enable hook script for automatic CPU pinning on VM start
+qm set 101 --hookscript local:snippets/101.hook
+```
+
+### 9. Start VM and Verify CPU Pinning
+
+The hook script will automatically apply CPU pinning when the VM starts.
+
+```bash
+# Start the VM
+qm start 101
+
+# Wait a moment for the hook to execute, then verify
+sleep 15
+
+# Check hook execution in system logs
+journalctl -t "vm-hook[101]" --since "2 minutes ago"
+
+# Verify CPU pinning was applied
+systemctl status vm-pin@101-4-7.service
+
+# Check CPU affinity
+taskset -pc $(cat /var/run/qemu-server/101.pid)
+```
+
+**Note:** The hook script (`/var/lib/vz/snippets/101.hook`) automatically triggers CPU pinning every time the VM starts, whether from a manual start or after a host reboot. This guarantees the VM is always pinned to the correct cores.
+
+#### Ubuntu Installation
+
+Access the VM console through Proxmox web UI and proceed with installation:
+
+1. **Installation steps:**
+   - Follow Ubuntu Server installation wizard
+   - Enable OpenSSH server when prompted
+   - Enable docker when prompted
+   - Enable canonical-livepatch when prompted
+
+2. **Post-installation:**
+   - After installation completes and VM reboots, remove the ISO:
+     ```bash
+     qm set 101 --delete ide2
+     ```
+
+  - Set up networking. Add to `/etc/netplan/50-cloud-init.yaml`
+    ```
+    network:
+      version: 2
+      ethernets:
+        enp6s18:
+          dhcp4: no
+          addresses:
+            - 192.168.0.3/24
+          routes:
+            - to: default
+              via: 192.168.0.1
+          nameservers:
+            addresses:
+              - 192.168.0.1
+    ```
+    Apply with
+    ```
+    sudo netplan apply
+    ```
+
+  - Update the system:
+    ```
+    sudo apt update
+    sudo apt upgrade -y
+    sudo reboot
+    ```
+---
+
+## CPU Core Allocation
+
+| Cores | Assignment |
+|-------|------------|
+| 0-1   | Proxmox Host |
+| 2-3   | VM 100 (OPNsense) |
+| 4-7   | VM 101 (Ubuntu) |

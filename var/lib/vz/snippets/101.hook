@@ -1,0 +1,48 @@
+#!/bin/bash
+# /var/lib/vz/snippets/101.hook
+# Proxmox VM hook script for VM 101 (Ubuntu)
+#
+# This script automatically applies CPU pinning when the VM starts.
+# Hook scripts are called with two arguments:
+#   $1 = vmid (101)
+#   $2 = phase (pre-start, post-start, pre-stop, post-stop, etc.)
+#
+set -eu
+
+VMID="$1"
+PHASE="$2"
+
+log() {
+  logger -t "vm-hook[$VMID]" "$1: $2"
+}
+
+case "$PHASE" in
+  post-start)
+    log "INFO" "VM started, waiting for threads to spawn"
+
+    # Wait for VM to fully initialize and spawn all threads
+    # QEMU creates vCPU and vhost threads after the main process starts
+    sleep 15
+
+    log "INFO" "Applying CPU pinning to cores 4-7"
+
+    # Trigger the vm-pin service
+    if systemctl start "vm-pin@${VMID}-4-7.service"; then
+      log "INFO" "CPU pinning applied successfully to cores 4-7"
+    else
+      log "ERROR" "Failed to apply CPU pinning"
+      exit 1
+    fi
+    ;;
+
+  pre-stop)
+    log "INFO" "VM stopping"
+    ;;
+
+  *)
+    # Other phases: pre-start, post-stop, etc.
+    # No action needed
+    ;;
+esac
+
+exit 0
