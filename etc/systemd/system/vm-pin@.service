@@ -6,7 +6,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
-# pass the instance string (e.g. "100-0-3") as %i
+# pass the instance string (e.g. "100-0-1") as %i
 ExecStart=/usr/local/bin/vm-pin.sh %i
 Nice=0
 # Let systemd capture stdout/stderr to journal

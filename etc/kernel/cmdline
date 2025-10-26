@@ -1,1 +1,1 @@
-root=UUID=6573186e-0339-4ac1-a606-cb5759ec31d4 intel_iommu=on iommu=pt isolcpus=2-7 nohz_full=2-7 rcu_nocbs=2-7
+root=UUID=b11a15a4-78ce-49d4-ad71-7257c8112203 intel_iommu=on iommu=pt isolcpus=2-7 nohz_full=2-7 rcu_nocbs=2-7

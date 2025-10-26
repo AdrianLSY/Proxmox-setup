@@ -27,7 +27,7 @@ case "$PHASE" in
     log "INFO" "Applying CPU pinning"
 
     # Trigger the vm-pin service
-    if systemctl start "vm-pin@${VMID}-2-5.service"; then
+    if systemctl start "vm-pin@${VMID}-2-3.service"; then
       log "INFO" "CPU pinning applied successfully"
     else
       log "ERROR" "Failed to apply CPU pinning"

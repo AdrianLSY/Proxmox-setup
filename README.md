@@ -88,7 +88,7 @@ chmod +x /var/lib/vz/snippets/100.hook
 # Reload systemd and enable services
 systemctl daemon-reload
 systemctl enable --now vfio-bind@01:00.0.service
-systemctl enable --now vm-pin@100-2-5.service
+systemctl enable --now vm-pin@100-2-3.service
 
 # Update boot configuration and initramfs
 proxmox-boot-tool refresh
@@ -133,15 +133,14 @@ bunzip2 /var/lib/pve/local-btrfs/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2
 ```bash
 qm create 100 \
   --name opnsense \
-  --memory 16384 \
-  --cores 4 \
+  --memory 8192 \
+  --cores 2 \
   --sockets 1 \
   --cpu host \
   --machine q35
-
 qm set 100 \
   --numa 1 \
-  --numa0 cpus=0-3,hostnodes=0,memory=16384,policy=bind
+  --numa0 cpus=0-1,hostnodes=0,memory=8192,policy=bind
 
 qm set 100 \
   --scsihw virtio-scsi-pci \
@@ -182,7 +181,7 @@ sleep 2
 journalctl -t "vm-hook[100]" --since "1 minute ago"
 
 # Verify CPU pinning was applied
-systemctl status vm-pin@100-2-5.service
+systemctl status vm-pin@100-2-3.service
 
 # Check CPU affinity
 taskset -pc $(cat /var/run/qemu-server/100.pid)

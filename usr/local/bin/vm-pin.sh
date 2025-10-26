@@ -25,7 +25,7 @@ cpulist="${input#*-}"
 
 # Validate parsing succeeded
 if [ -z "$vmid" ] || [ -z "$cpulist" ] || [ "$vmid" = "$cpulist" ]; then
-  log "ERROR" "invalid format '$input' (expected: vmid-cpulist, e.g., 100-2-5)"
+  log "ERROR" "invalid format '$input' (expected: vmid-cpulist, e.g., 100-2-3)"
   exit 1
 fi
 
@@ -37,7 +37,7 @@ fi
 
 # Validate cpulist format (basic check)
 if ! echo "$cpulist" | grep -Eq '^[0-9,\-]+$'; then
-  log "ERROR" "cpulist '$cpulist' contains invalid characters (expected: 0-3 or 0,2,4)"
+  log "ERROR" "cpulist '$cpulist' contains invalid characters (expected: 0-2 or 0,2,4)"
   exit 1
 fi
 
