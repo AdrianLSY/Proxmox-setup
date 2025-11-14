@@ -3,8 +3,7 @@
 A Configuration repository for Proxmox VE with PCI passthrough, CPU pinning, and NUMA optimization.
 A reference by me for future me.
 
-Or YOU if you so happen to have this specific machine with the Intel Core 3-N355.
-Topton 6 LAN 2.5G i226-V – AliExpress
+Or YOU if you so happen to have this specific machine with the Intel Core 3-N355. [Topton 6 LAN 2.5G i226-V - AliExpress](https://www.aliexpress.com/item/1005005942080539.html)
 
 ---
 
@@ -163,3 +162,76 @@ systemctl status vm-pin@101-4-7.service
 | 0-1   | Proxmox Host      |
 | 2-3   | VM 100 (OPNsense) |
 | 4-7   | VM 101 (Ubuntu)   |
+
+
+#### Opnsense Setup
+
+After the VM reboots into OPNsense, configure the network interfaces:
+
+**Step 1: Assign Interfaces**
+
+1. Press `1` to assign interfaces
+2. Configure LAGG? Enter `n`
+3. Configure VLANs? Enter `n`
+4. Interface assignment:
+   - Available interfaces: `igc0` (Intel I226-V passthrough) and `vtnet0` (VirtIO bridge)
+   - **WAN interface:** Enter `igc0`
+   - **LAN interface:** Enter `vtnet0`
+   - **Optional interfaces:** Press Enter to skip
+5. Confirm with `y`
+
+**Step 2: Set LAN IP Address**
+
+1. Press `2` to set interface IP address
+2. Select `1` for LAN
+
+3. **IPv4 Configuration:**
+   - Configure IPv4 address LAN interface via DHCP? `n`
+   - Enter new LAN IPv4 address: `192.168.0.1`
+   - Enter new LAN IPv4 subnet bit count: `24`
+   - For a WAN, enter upstream gateway (press Enter for none): Press Enter
+
+4. **IPv6 Configuration:**
+   - Configure IPv6 address interface via WAN tracking? `n`
+   - Configure IPv6 address LAN interface via DHCP6? `n`
+   - Enter new LAN IPv6 address (press Enter for none): Press Enter
+
+5. **DHCP Server:**
+   - Enable DHCP server on LAN? `y`
+   - Enter start address: `192.168.0.100`
+   - Enter end address: `192.168.0.200`
+
+6. **Web GUI:**
+   - Change web GUI protocol from HTTPS to HTTP? `n`
+   - Generate new self-signed web GUI certificate? `y`
+   - Restore web GUI access defaults? `y`
+
+After configuration completes, access the OPNsense web interface at `https://192.168.0.1` from a device on the LAN network (vmbr0). Default credentials are `root` / `opnsense`.
+
+## Ubuntu Setup
+Set up networking. Add to `/etc/netplan/50-cloud-init.yaml`
+```bash
+network:
+  version: 2
+  ethernets:
+    enp6s18:
+      dhcp4: no
+      addresses:
+        - 192.168.0.3/24
+      routes:
+        - to: default
+          via: 192.168.0.1
+      nameservers:
+        addresses:
+          - 192.168.0.1
+```
+
+Update the system:
+
+```bash
+sudo apt update
+sudo apt upgrade -y
+sudo resize2fs /dev/ubuntu-vg/ubuntu-lv
+sudo reboot
+```
+---
