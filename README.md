@@ -1,16 +1,10 @@
-# Proxmox Setup (BTRFS RAID1 + IOMMU + VFIO)
+# Proxmox Setup (ZFS + IOMMU + VFIO)
 
 A Configuration repository for Proxmox VE with PCI passthrough, CPU pinning, and NUMA optimization.
 A reference by me for future me
 
 Or YOU if you so happen to have this specific machine with the Intel Core 3-N355.
 [Topton 6 LAN 2.5G i226-V - AliExpress](https://www.aliexpress.com/item/1005005942080539.html?spm=a2g0o.order_list.order_list_main.5.18ed1802mnKkhV)
-
-BTRFS seems to fit my needs for a modern filesystem and integrated raid support on install. I did not want to manually configure ext4 with raid support.
-
-I've had issues setting this up with ZFS and some time googgling and asking chatgpt. The issue points to extremely poor VM disk performance due to ZFS’s heavy sync and copy-on-write behavior. Even non-ZFS guests like UFS suffer because each guest write forces ZFS to flush its own transaction groups.
-
-In short, ZFS adds too much overhead for VM workloads with frequent small writes, making installs and updates painfully slow. I dont have the patience to sit and wait for installs and updates to complete and have to benchmark opnsense performance under this constraint.
 
 ---
 
@@ -19,37 +13,32 @@ In short, ZFS adds too much overhead for VM workloads with frequent small writes
 This repository mirrors the Proxmox filesystem structure. Files are organized by their target system paths:
 
 ```
-.
 ├── etc
-│   ├── initramfs-tools
-│   │   └── modules
-│   ├── kernel
-│   │   └── cmdline
-│   ├── modprobe.d
-│   │   ├── blacklist-i915.conf
-│   │   └── vfio.conf
-│   ├── modules-load.d
-│   │   └── vfio.conf
-│   ├── network
-│   │   └── interfaces
-│   └── systemd
-│       └── system
-│           ├── vfio-bind@.service
-│           └── vm-pin@.service
-├── modprobe.d
+│    ├── kernel
+│    │    └── cmdline
+│    ├── modprobe.d
+│    │    └── vfio.conf
+│    ├── modules-load.d
+│    │    └── vfio.conf
+│    ├── network
+│    │    └── interfaces
+│    ├── resolv.conf
+│    └── systemd
+│        └── system
+│            ├── vfio-bind@.service
+│            └── vm-pin@.service
 ├── README.md
 ├── usr
-│   └── local
-│       └── bin
-│           ├── vfio-bind-00:02.0.sh
-│           ├── vfio-bind-01:00.0.sh
-│           └── vm-pin.sh
+│    └── local
+│        └── bin
+│            ├── vfio-bind-01:00.0.sh
+│            └── vm-pin.sh
 └── var
-    └── lib
-        └── vz
-            └── snippets
-                ├── 100.hook
-                └── 101.hook
+|    └── lib
+|        └── vz
+|            └── snippets
+|                ├── 100.hook
+|                └── 101.hook
 ```
 
 To deploy, copy files from their repository path to the corresponding system path (e.g., `etc/kernel/cmdline` → `/etc/kernel/cmdline`).
@@ -61,29 +50,21 @@ To deploy, copy files from their repository path to the corresponding system pat
 ### 1. Update System
 
 ```bash
+rm -f /etc/apt/sources.list.d/pve-enterprise.sources /etc/apt/sources.list.d/ceph.sources
 apt-get update
 apt-get upgrade -y
 ```
 
 ### 2. Deploy Configuration Files
-
-Add a directory for hook scripts
-```bash
-mkdir /var/lib/vz/snippets/
-```
-
 Copy files from this repository to their corresponding system locations:
 
+* `etc/resolv.conf` → `/etc/resolv.conf`
 * `etc/kernel/cmdline` → `/etc/kernel/cmdline`
 * `etc/network/interfaces` → `/etc/network/interfaces`
 * `etc/modules-load.d/vfio.conf` → `/etc/modules-load.d/vfio.conf`
 * `etc/modprobe.d/vfio.conf` → `/etc/modprobe.d/vfio.conf`
-* `etc/modprobe.d/blacklist-i915.conf` → `/etc/modprobe.d/blacklist-i915.conf`
-* `etc/initramfs-tools/modules` → `/etc/initramfs-tools/modules`
 * `etc/systemd/system/vfio-bind@.service` → `/etc/systemd/system/vfio-bind@.service`
 * `etc/systemd/system/vm-pin@.service` → `/etc/systemd/system/vm-pin@.service`
-* `usr/local/bin/vfio-bind-01:00.0.sh` → `/usr/local/bin/vfio-bind-01:00.0.sh`
-* `usr/local/bin/vfio-bind-00:02.0.sh` → `/usr/local/bin/vfio-bind-00:02.0.sh`
 * `usr/local/bin/vm-pin.sh` → `/usr/local/bin/vm-pin.sh`
 * `var/lib/vz/snippets/100.hook` → `/var/lib/vz/snippets/100.hook`
 * `var/lib/vz/snippets/101.hook` → `/var/lib/vz/snippets/101.hook`
@@ -92,20 +73,16 @@ Copy files from this repository to their corresponding system locations:
 
 ```bash
 # Set execute permissions
-chmod +x /usr/local/bin/vfio-bind-01:00.0.sh
-chmod +x /usr/local/bin/vfio-bind-00:02.0.sh
 chmod +x /usr/local/bin/vm-pin.sh
 chmod +x /var/lib/vz/snippets/100.hook
 chmod +x /var/lib/vz/snippets/101.hook
 
-# Reload systemd and enable services
+# Reload systemd and enable services (Expect errors)
 systemctl daemon-reload
-systemctl enable --now vfio-bind@01:00.0.service
-systemctl enable --now vfio-bind@00:02.0.service
 
 # Update boot configuration and initramfs
-proxmox-boot-tool refresh
 update-initramfs -u -k all
+proxmox-boot-tool refresh
 ```
 
 ### 4. Reboot
@@ -126,19 +103,18 @@ dmesg | grep -e IOMMU -e DMAR
 lspci -nnk -d 8086:125c
 
 # Check service status
-systemctl status vfio-bind@01:00.0.service
 systemctl status vm-pin@100-2-5.service
 ```
 
 ### 6. Download ISOs
 
 ```bash
-wget -O /var/lib/pve/local-btrfs/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2 \
+wget -O /var/lib/pve/local-zfs/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2 \
   https://pkg.opnsense.org/releases/25.7/OPNsense-25.7-dvd-amd64.iso.bz2
 
-bunzip2 /var/lib/pve/local-btrfs/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2
+bunzip2 /var/lib/pve/local-zfs/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2
 
-wget -O /var/lib/pve/local-btrfs/template/iso/ubuntu-24.04.3-live-server-amd64.iso \
+wget -O /var/lib/pve/local-zfs/template/iso/ubuntu-24.04.3-live-server-amd64.iso \
   https://releases.ubuntu.com/24.04.3/ubuntu-24.04.3-live-server-amd64.iso
 ```
 
@@ -160,10 +136,10 @@ qm set 100 \
 
 qm set 100 \
   --scsihw virtio-scsi-pci \
-  --scsi0 local-btrfs:64,cache=none,discard=on,aio=native
+  --scsi0 local-zfs:64,cache=none,discard=on,aio=native
 
 qm set 100 \
-  --ide2 local-btrfs:iso/OPNsense-25.7-dvd-amd64.iso,media=cdrom
+  --ide2 local-zfs:iso/OPNsense-25.7-dvd-amd64.iso,media=cdrom
 
 qm set 100 \
   --net0 virtio=BC:24:11:0D:0E:DE,bridge=vmbr0,queues=6
@@ -288,10 +264,10 @@ qm set 101 \
 
 qm set 101 \
   --scsihw virtio-scsi-pci \
-  --scsi0 local-btrfs:256,cache=none,discard=on,aio=native
+  --scsi0 local-zfs:256,cache=none,discard=on,aio=native
 
 qm set 101 \
-  --ide2 local-btrfs:iso/ubuntu-24.04.3-live-server-amd64.iso,media=cdrom
+  --ide2 local-zfs:iso/ubuntu-24.04.3-live-server-amd64.iso,media=cdrom
 
 qm set 101 \
   --net0 virtio,bridge=vmbr0

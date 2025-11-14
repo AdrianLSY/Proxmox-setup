@@ -1,1 +1,1 @@
-root=UUID=b11a15a4-78ce-49d4-ad71-7257c8112203 intel_iommu=on iommu=pt isolcpus=2-7 nohz_full=2-7 rcu_nocbs=2-7
+root=ZFS=rpool/ROOT/pve-1 boot=zfs intel_iommu=on iommu=pt isolcpus=2-7 nohz_full=2-7 rcu_nocbs=2-7
