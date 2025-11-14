@@ -13,20 +13,25 @@ This repository mirrors the Proxmox filesystem structure. Files are organized by
 
 ```
 etc/
-├── kernel/
-│   └── cmdline
-├── network/
-│   └── interfaces
-├── resolv.conf
-└── systemd/system/
-    └── vm-pin@.service
-
-usr/local/bin/
-    └── vm-pin.sh
-
-var/lib/vz/snippets/
-    ├── 100.hook
-    └── 101.hook
+├── etc
+│    ├── kernel
+│    │    └── cmdline
+│    ├── network
+│    │    └── interfaces
+│    ├── resolv.conf
+│    └── systemd
+│        └── system
+│            └── vm-pin@.service
+├── usr
+│    └── local
+│        └── bin
+│            └── vm-pin.sh
+└── var
+    └── lib
+        └── vz
+            └── snippets
+                ├── 100.hook
+                └── 101.hook
 ```
 
 To deploy, copy files from their repository path to the corresponding system path.
@@ -37,13 +42,7 @@ To deploy, copy files from their repository path to the corresponding system pat
 
 ### 1. Deploy Configuration Files
 
-* `etc/resolv.conf` → `/etc/resolv.conf`
-* `etc/kernel/cmdline` → `/etc/kernel/cmdline`
-* `etc/network/interfaces` → `/etc/network/interfaces`
-* `etc/systemd/system/vm-pin@.service` → `/etc/systemd/system/vm-pin@.service`
-* `usr/local/bin/vm-pin.sh` → `/usr/local/bin/vm-pin.sh`
-* `var/lib/vz/snippets/100.hook` → `/var/lib/vz/snippets/100.hook`
-* `var/lib/vz/snippets/101.hook` → `/var/lib/vz/snippets/101.hook`
+Move all files to their respective system paths. This repo shadows the root filesystem. 
 
 ### Execute Commands
 
