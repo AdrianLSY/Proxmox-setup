@@ -36,15 +36,7 @@ To deploy, copy files from their repository path to the corresponding system pat
 
 ## Setup Steps
 
-### 1. Update System
-
-```bash
-rm -f /etc/apt/sources.list.d/pve-enterprise.sources /etc/apt/sources.list.d/ceph.sources
-apt-get update
-apt-get upgrade -y
-```
-
-### 2. Deploy Configuration Files
+### 1. Deploy Configuration Files
 
 * `etc/resolv.conf` → `/etc/resolv.conf`
 * `etc/kernel/cmdline` → `/etc/kernel/cmdline`
@@ -54,9 +46,13 @@ apt-get upgrade -y
 * `var/lib/vz/snippets/100.hook` → `/var/lib/vz/snippets/100.hook`
 * `var/lib/vz/snippets/101.hook` → `/var/lib/vz/snippets/101.hook`
 
-### 3. Apply Changes
+### Execute Commands
 
 ```bash
+rm -f /etc/apt/sources.list.d/pve-enterprise.sources /etc/apt/sources.list.d/ceph.sources
+apt-get update
+apt-get upgrade -y
+
 chmod +x /usr/local/bin/vm-pin.sh
 chmod +x /var/lib/vz/snippets/100.hook
 chmod +x /var/lib/vz/snippets/101.hook
@@ -65,34 +61,7 @@ systemctl daemon-reload
 
 update-initramfs -u -k all
 proxmox-boot-tool refresh
-```
 
-### 4. Reboot
-
-```bash
-reboot
-```
-
----
-
-## Verify Configuration
-
-```bash
-dmesg | grep -e IOMMU -e DMAR
-systemctl status vm-pin@100-2-5.service
-```
-
----
-
-## Download ISOs
-
-All ISOs are stored in `local` storage:
-
-```
-/var/lib/vz/template/iso/
-```
-
-```bash
 wget -O /var/lib/vz/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2 \
   https://pkg.opnsense.org/releases/25.7/OPNsense-25.7-dvd-amd64.iso.bz2
 
@@ -100,14 +69,7 @@ wget -O /var/lib/vz/template/iso/ubuntu-24.04.3-live-server-amd64.iso \
   https://releases.ubuntu.com/24.04.3/ubuntu-24.04.3-live-server-amd64.iso
   
 bunzip2 /var/lib/vz/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2
-```
 
----
-
-## Create VMs
-
-```bash
-# OPNsense Router VM (ID: 100)
 qm create 100 \
   --name opnsense \
   --memory 8192 \
@@ -122,7 +84,7 @@ qm set 100 \
 
 qm set 100 \
   --scsihw virtio-scsi-pci \
-  --scsi0 local-zfs:64,cache=none,discard=on,aio=native
+  --scsi0 local-zfs:32,cache=none,discard=on,aio=native
 
 qm set 100 \
   --ide2 local:iso/OPNsense-25.7-dvd-amd64.iso,media=cdrom
@@ -157,7 +119,7 @@ qm set 101 \
 
 qm set 101 \
   --scsihw virtio-scsi-pci \
-  --scsi0 local-zfs:256,cache=none,discard=on,aio=native
+  --scsi0 local-zfs:64,cache=none,discard=on,aio=native
 
 qm set 101 \
   --ide2 local:iso/ubuntu-24.04.3-live-server-amd64.iso,media=cdrom
@@ -170,24 +132,25 @@ qm set 101 \
   --vga std \
   --serial0 socket \
   --balloon 0 \
-  --onboot 0
+  --onboot 1
 
 qm set 101 --hookscript local:snippets/101.hook
-```
 
+reboot
+```
 ---
+
+## Remove Disks
+
+```bash
+qm set 100 --delete ide2
+qm set 101 --delete ide2
+```
 
 ## CPU Pinning Verification
 
 ```bash
-qm start 100
-sleep 15
 systemctl status vm-pin@100-2-3.service
-```
-
-```bash
-qm start 101
-sleep 15
 systemctl status vm-pin@101-4-7.service
 ```
 

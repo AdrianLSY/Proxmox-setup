@@ -24,11 +24,11 @@ case "$PHASE" in
     # QEMU creates vCPU and vhost threads after the main process starts
     sleep 15
 
-    log "INFO" "Applying CPU pinning"
+    log "INFO" "Applying CPU pinning to cores 2-3"
 
     # Trigger the vm-pin service
     if systemctl start "vm-pin@${VMID}-2-3.service"; then
-      log "INFO" "CPU pinning applied successfully"
+      log "INFO" "CPU pinning applied successfully to cores 2-3"
     else
       log "ERROR" "Failed to apply CPU pinning"
       exit 1
