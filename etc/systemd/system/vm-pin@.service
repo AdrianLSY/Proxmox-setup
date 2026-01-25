@@ -1,8 +1,8 @@
 [Unit]
 Description=Pin CPU affinity for VM %i
-# Adjust Requires/After to match the VM manager on your host (Proxmox, libvirt, etc.)
-# Example for Proxmox VM start ordering you might add: After=qm.service
-After=multi-user.target
+# Note: Do NOT use After=multi-user.target here - it causes a deadlock when
+# called from pve-guests hook scripts during boot (hook waits for this service,
+# this service waits for multi-user.target, multi-user.target waits for pve-guests)
 
 [Service]
 Type=oneshot
