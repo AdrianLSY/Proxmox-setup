@@ -46,7 +46,7 @@ To deploy, copy files from their repository path to the corresponding system pat
 
 ### 1. Deploy Configuration Files
 
-Move all files to their respective system paths. This repo shadows the root filesystem. 
+Move all files to their respective system paths. This repo shadows the root filesystem.
 
 ### Execute Commands
 
@@ -77,7 +77,7 @@ wget -O /var/lib/vz/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2 \
 
 wget -O /var/lib/vz/template/iso/ubuntu-24.04.3-live-server-amd64.iso \
   https://releases.ubuntu.com/24.04.3/ubuntu-24.04.3-live-server-amd64.iso
-  
+
 bunzip2 /var/lib/vz/template/iso/OPNsense-25.7-dvd-amd64.iso.bz2
 
 qm create 100 \
@@ -148,6 +148,7 @@ qm set 101 --hookscript local:snippets/101.hook
 
 reboot
 ```
+
 ---
 
 ## Remove Disks
@@ -173,7 +174,6 @@ systemctl status vm-pin@101-4-7.service
 | 0-1   | Proxmox Host      |
 | 2-3   | VM 100 (OPNsense) |
 | 4-7   | VM 101 (Ubuntu)   |
-
 
 #### Opnsense Setup
 
@@ -220,7 +220,9 @@ After the VM reboots into OPNsense, configure the network interfaces:
 After configuration completes, access the OPNsense web interface at `https://192.168.0.1` from a device on the LAN network (vmbr0). Default credentials are `root` / `opnsense`.
 
 ## Ubuntu Setup
+
 Set up networking. Add to `/etc/netplan/50-cloud-init.yaml`
+
 ```bash
 network:
   version: 2
@@ -245,4 +247,5 @@ sudo apt upgrade -y
 sudo resize2fs /dev/ubuntu-vg/ubuntu-lv
 sudo reboot
 ```
+
 ---
