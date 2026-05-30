@@ -14,11 +14,13 @@ This repository mirrors the Proxmox filesystem structure. Files are organized by
 ```
 etc/
 ├── etc
+│    ├── apt
+│    │    └── sources.list.d
+│    │        └── tailscale.list
 │    ├── kernel
 │    │    └── cmdline
 │    ├── network
 │    │    └── interfaces
-│    ├── resolv.conf
 │    └── systemd
 │        └── system
 │            └── vm-pin@.service
@@ -34,6 +36,8 @@ etc/
                 └── 101.hook
 ```
 
+> `/etc/resolv.conf` is intentionally not tracked: Tailscale (MagicDNS) manages it on this host. See the Tailscale section below.
+
 To deploy, copy files from their repository path to the corresponding system path.
 
 ---
@@ -48,8 +52,16 @@ Move all files to their respective system paths. This repo shadows the root file
 
 ```bash
 rm -f /etc/apt/sources.list.d/pve-enterprise.sources /etc/apt/sources.list.d/ceph.sources
+
+# Tailscale (manages /etc/resolv.conf via MagicDNS, hence resolv.conf is not tracked)
+curl -fsSL https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg \
+  -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+# tailscale.list is shipped in this repo under etc/apt/sources.list.d/
+
 apt-get update
 apt-get upgrade -y
+apt-get install -y tailscale
+tailscale up    # interactive: opens auth URL; run --accept-dns to keep MagicDNS
 
 chmod +x /usr/local/bin/vm-pin.sh
 chmod +x /var/lib/vz/snippets/100.hook
@@ -88,7 +100,7 @@ qm set 100 \
   --ide2 local:iso/OPNsense-25.7-dvd-amd64.iso,media=cdrom
 
 qm set 100 \
-  --net0 virtio=BC:24:11:0D:0E:DE,bridge=vmbr0,queues=6
+  --net0 e1000=BC:24:11:0D:0E:DE,bridge=vmbr0
 
 qm set 100 \
   --hostpci0 0000:01:00.0,pcie=1
